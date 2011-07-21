@@ -234,12 +234,13 @@ def evaluateTree(node, width, height):
                 for move in movesFromHere:
                     newNode = createNode(getMoveList(node), move)
                     evaluateTree(newNode, width, height)
-                    #if (len(getMoveList(node))%2 == 0 and getWinState(newNode) == 'L') :
-                    #   setChildList(node, [newNode])
-                    #   break
+                    if (len(getMoveList(node))%2 == 0 and getWinState(newNode) == 'L') :
+                       setChildList(node, [newNode])
+                       break
                     #elif not (len(getMoveList(node))%2 == 0 and getWinState(newNode) == 'W') :
                     #   addChild(node, newNode)
-                    addChild(node, newNode)
+                    else:
+                        addChild(node, newNode)
                 # count wins loses and draws to figure out if i won or not
                 #if earlyBreak:
                 #   print "break early"
@@ -258,10 +259,14 @@ def evaluateTree(node, width, height):
                 
                 if loses > 0:
                     setWinState(node, 'W')
+                    if len(getMoveList(node))%2 == 1:
+                        setChildList(node, [])
                 elif draws > 0:
                     setWinState(node, 'D')
                 else:
                     setWinState(node, 'L')
+                    if len(getMoveList(node))%2 == 0:
+                        setChildList(node, [])
                     #setChildList(node, [])
                 #print "Position: " + str(getMoveList(node)) + "\t W: " + str(wins) + "\t D: " + str(draws) + "\t L: " + str(loses) + ". This is a " + str(getWinState(node))
 
