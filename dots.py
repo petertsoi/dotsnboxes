@@ -82,13 +82,12 @@ def allMoves(width, height):
 # Generate a list of possible moves left based on the ones already taken
 # In order to better get rid of duplicates, the first number will always be the smaller number
 # (0,3) is the same as (3,0) so only store (0,3).
-def genMoves(node, width, height):
-    listOfTakenMoves = getMoveList(node)
+def genMoves(listOfTakenMoves, width, height):
     global allMovesPossible
     if allMovesPossible == []:
         allMovesPossible = allMoves(width, height)
     remaining = [i for i in allMovesPossible if i not in listOfTakenMoves]
-    if scoreAfterLastMove(node, width, height, (0,0)) == (0, 0) or len(remaining) == 0:
+    if scoreAfterLastMove(listOfTakenMoves, width, height, (0,0)) == (0, 0) or len(remaining) == 0:
         return remaining
     else:
         return [(-999, -999)]
@@ -102,7 +101,7 @@ def setMoveList(node, moveList):
     node[0] = moveList
 
 def addToMoveList(node, newMove):
-    node[0].add(newMove)
+    node[0].append(newMove)
 
 def getWinState(node):
     return node[1]
@@ -119,19 +118,14 @@ def setChildList(node, childList):
 def addChild(node, newChild):
     node[2].append(newChild)
 
-def getLastMove(node):
-    return node[3]
-
-def getTurn(node):
-    return node[4]
-
-def createRootNode():
-    return createNode(set(), None, True)
-
-def createNode(movesTaken, lastMove, turn):
-    node = [ movesTaken , '?', [], lastMove, turn ]
-    if lastMove is not None:
-        addToMoveList(node, lastMove)
+def createNode(movesTaken, lastMove):
+    moveListCopy = movesTaken[:]
+    node = []
+    if moveListCopy == []:
+        node =  [ [lastMove], '?', [] ]
+    else:
+        moveListCopy.append(lastMove)
+        node = [ moveListCopy , '?', [] ]
     return node
 
 
@@ -142,10 +136,9 @@ def createNode(movesTaken, lastMove, turn):
 # Really, a lot of the times, you already know the score because you just 
 # came from a position and knew the score from there already and you're 
 # only interested in whether the last move finished a box or not
-def scoreAfterLastMove(node, width, height, previousScore):
-    if len(getMoveList(node)) > 0 and getLastMove(node) != (-999, -999):
-        print node
-        lastMove = getLastMove(node)
+def scoreAfterLastMove(listOfMoves, width, height, previousScore):
+    if len(listOfMoves) > 0 and listOfMoves[len(listOfMoves)-1] != (-999, -999):
+        lastMove = listOfMoves[len(listOfMoves)-1]
         borderBox1 = []
         borderBox2 = []
         if lastMove[0] + 1 == lastMove[1]:  # horizontal 
@@ -163,7 +156,7 @@ def scoreAfterLastMove(node, width, height, previousScore):
             borderBox2.append((lastMove[1], lastMove[1]+1))
             borderBox2.append((lastMove[0]+1, lastMove[1]+1))
         
-        for move in getMoveList(node):
+        for move in listOfMoves:
             if move in borderBox1:
                 borderBox1.remove(move)
             if move in borderBox2:
@@ -176,7 +169,7 @@ def scoreAfterLastMove(node, width, height, previousScore):
         if len(borderBox2) == 0:
             boxesCompleted += 1
     
-        if len(getMoveList(node)) % 2 == 0:   # last move made by player 2
+        if len(listOfMoves) % 2 == 0:   # last move made by player 2
             #print "Player 2 completed " + str(boxesCompleted) + " boxes."  # testing
             #drawBoard(listOfMoves, width, height)                          # testing
             return (previousScore[0], previousScore[1] + boxesCompleted)
@@ -189,11 +182,11 @@ def scoreAfterLastMove(node, width, height, previousScore):
         return previousScore
 
 # This method is recursive.
-def countBoxesToDepth(node, width, height, depth, score):
-    if depth > len(getMoveList(node)):
+def countBoxesToDepth(listOfMoves, width, height, depth, score):
+    if depth > len(listOfMoves):
         return score
     else:
-        return countBoxesToDepth(node, width, height, depth + 1, scoreAfterLastMove(node, width, height, score))
+        return countBoxesToDepth(listOfMoves, width, height, depth + 1, scoreAfterLastMove(listOfMoves[:depth], width, height, score))
 
 
 # Play through the game based on this list of moves and determine how many 
@@ -201,8 +194,8 @@ def countBoxesToDepth(node, width, height, depth, score):
 # Test with:
 #   scoreGame([ (0, 1), (1, 3), (0, 2), (2, 3) ], 2, 2)
 #   scoreGame([ (0, 1), (2, 3), (1, 2), (5, 6), (4, 5), (5, 9), (6, 7), (2, 6), (1, 5), (-999, -999), (0, 4), (-999, -999), (9, 10), (6, 10), (-999, -999), (3, 7), (-999, -999), (4, 8), (8, 9), (-999, -999), (7, 11), (10, 11)  ], 4, 3)
-def scoreGame(node, width, height):
-    return countBoxesToDepth(node, width, height, 0, (0, 0))
+def scoreGame(listOfMoves, width, height):
+    return countBoxesToDepth(listOfMoves, width, height, 0, (0, 0))
 
 
 def relativeScore(score):
@@ -224,12 +217,12 @@ def evaluateTree(node, width, height):
         return
     else:
         if True:
-            movesFromHere = genMoves(node, width, height)
+            movesFromHere = genMoves(getMoveList(node), width, height)
             if len(movesFromHere) == 0:     # no more children. score and mark as win lose or draw
                 mult = 1
                 if len(getMoveList(node)) % 2 == 1:
                     mult = -1
-                gameScore = mult * relativeScore(scoreGame(node, width, height))
+                gameScore = mult * relativeScore(scoreGame(getMoveList(node), width, height))
                 setWinState(node, winLoseDraw(gameScore))
                 global leaf
                 leaf += 1
@@ -239,7 +232,7 @@ def evaluateTree(node, width, height):
             else:       # go get children and figure out if they win lose or draw
                 #earlyBreak = False
                 for move in movesFromHere:
-                    newNode = createNode(getMoveList(node), move, not getTurn(node))
+                    newNode = createNode(getMoveList(node), move)
                     evaluateTree(newNode, width, height)
                     #if (len(getMoveList(node))%2 == 0 and getWinState(newNode) == 'L') :
                     #   setChildList(node, [newNode])
@@ -298,7 +291,7 @@ def getBestPath(node):
             getBestPath(loseNode)
 
 #root = [ [(0, 1), (7, 8), (1, 2), (6, 7), (0, 3), (5, 8), (3, 4), (1,4), (-999, -999), (4, 5), (4, 7), (-999,-999)] , '?', [] ]
-root = createRootNode()
+root = [ [] , '?', [] ]
 evaluateTree(root, 2, 4)
 print "Tested " + str(leaf) + " strategies."
 print "The root position is a " + str( getWinState(root))
