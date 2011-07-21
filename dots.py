@@ -46,7 +46,7 @@ def getAdjacent(dotIndex, width, height):
     # top row won't have a "top"
     if dotIndex >= width:
         adjacentIndexes.append(top)
-    
+        
     # left column (index evenly divisible by width) won't have a "left"
     if dotIndex % width != 0:
         adjacentIndexes.append(left)
@@ -168,7 +168,7 @@ def scoreAfterLastMove(listOfMoves, width, height, previousScore):
             boxesCompleted += 1
         if len(borderBox2) == 0:
             boxesCompleted += 1
-        
+    
         if len(listOfMoves) % 2 == 0:   # last move made by player 2
             #print "Player 2 completed " + str(boxesCompleted) + " boxes."  # testing
             #drawBoard(listOfMoves, width, height)                          # testing
@@ -216,65 +216,58 @@ def evaluateTree(node, width, height):
     if getWinState(node) != '?':        # we already figured out if this wins loses or draws
         return
     else:
-        movesFromHere = genMoves(getMoveList(node), width, height)
-        if len(movesFromHere) == 0:     # no more children. score and mark as win lose or draw
-            mult = 1
-            if len(getMoveList(node)) % 2 == 1:
-                mult = -1
-            gameScore = mult * relativeScore(scoreGame(getMoveList(node), width, height))
-            setWinState(node, winLoseDraw(gameScore))
-            global leaf
-            leaf += 1
-            if leaf % 10000 == 0:
-                print leaf
-            return
-        else:       # go get children and figure out if they win lose or draw
-            #earlyBreak = False
-            for move in movesFromHere:
-                newNode = createNode(getMoveList(node), move)
-                evaluateTree(newNode, width, height)
-                if (len(getMoveList(node))%2 == 0 and getWinState(newNode) == 'L') :
-                    setChildList(node, [newNode])
-                    break
-                #elif not (len(getMoveList(node))%2 == 0 and getWinState(newNode) == 'W') :
-                #   addChild(node, newNode)
-                else:
+        if True:
+            movesFromHere = genMoves(getMoveList(node), width, height)
+            if len(movesFromHere) == 0:     # no more children. score and mark as win lose or draw
+                mult = 1
+                if len(getMoveList(node)) % 2 == 1:
+                    mult = -1
+                gameScore = mult * relativeScore(scoreGame(getMoveList(node), width, height))
+                setWinState(node, winLoseDraw(gameScore))
+                global leaf
+                leaf += 1
+                if leaf % 10000 == 0:
+                    print leaf
+                return
+            else:       # go get children and figure out if they win lose or draw
+                #earlyBreak = False
+                for move in movesFromHere:
+                    newNode = createNode(getMoveList(node), move)
+                    evaluateTree(newNode, width, height)
+                    #if (len(getMoveList(node))%2 == 0 and getWinState(newNode) == 'L') :
+                    #   setChildList(node, [newNode])
+                    #   break
+                    #elif not (len(getMoveList(node))%2 == 0 and getWinState(newNode) == 'W') :
+                    #   addChild(node, newNode)
                     addChild(node, newNode)
-            #addChild(node, newNode)
-            # count wins loses and draws to figure out if i won or not
-            #if earlyBreak:
-            #   print "break early"
-            wins = 0
-            draws = 0
-            loses = 0
-            for child in getChildList(node):
-                if getWinState(child) == 'W':
-                    wins += 1
-                elif getWinState(child) == 'L':
-                    loses += 1
-                elif getWinState(child) == 'D':
-                    draws += 1
+                # count wins loses and draws to figure out if i won or not
+                #if earlyBreak:
+                #   print "break early"
+                wins = 0
+                draws = 0
+                loses = 0
+                for child in getChildList(node):
+                    if getWinState(child) == 'W':
+                        wins += 1
+                    elif getWinState(child) == 'L':
+                        loses += 1
+                    elif getWinState(child) == 'D':
+                        draws += 1
+                    else:
+                        print "Screwed up somewhere. This should never happen"
+                
+                if loses > 0:
+                    setWinState(node, 'W')
+                elif draws > 0:
+                    setWinState(node, 'D')
                 else:
-                    print "Screwed up somewhere. This should never happen"
-            
-            if loses > 0:
-                setWinState(node, 'W')
-                if len(getMoveList(node))%2 == 1:
-                    setChildList(node, [])
-            elif draws > 0:
-                setWinState(node, 'D')
-            else:
-                setWinState(node, 'L')
-                if len(getMoveList(node))%2 == 0:
-                    setChildList(node, [])
-#print "Position: " + str(getMoveList(node)) + "\t W: " + str(wins) + "\t D: " + str(draws) + "\t L: " + str(loses) + ". This is a " + str(getWinState(node))
+                    setWinState(node, 'L')
+                    #setChildList(node, [])
+                #print "Position: " + str(getMoveList(node)) + "\t W: " + str(wins) + "\t D: " + str(draws) + "\t L: " + str(loses) + ". This is a " + str(getWinState(node))
 
 def getBestPath(node):
     if getChildList(node) == []:
-        if getMoveList(node) == []:
-            print "Futile"
-        else:
-            print getMoveList(node)
+        print getMoveList(node)
     else:
         winNode = []
         drawNode = []
