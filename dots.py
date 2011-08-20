@@ -92,6 +92,8 @@ def genMoves(listOfTakenMoves, width, height):
     else:
         return [(-999, -999)]
 
+moveCache = dict()
+
 # Node getters/setters/accessors
 
 def getMoveList(node):
@@ -119,15 +121,46 @@ def addChild(node, newChild):
     node[2].append(newChild)
 
 def createNode(movesTaken, lastMove):
+    #print "Creating node"
     moveListCopy = movesTaken[:]
+    #print "moveListCopy: " + str(moveListCopy) + "\t movesTaken: " + str(movesTaken)
     node = []
     if moveListCopy == []:
         node =  [ [lastMove], '?', [] ]
     else:
         moveListCopy.append(lastMove)
         node = [ moveListCopy , '?', [] ]
+    #print "Returning new node: " + str(node)
     return node
 
+def indexForMove(move, width, height):
+    if move[0] + 1 != move[1]:  # vertical
+        return move[0]
+    elif move == (-999, -999):
+        return -1
+    else:
+        return width * height - width + move[0] - (move[0]/width)
+
+
+def bitHashForMoveListScoreless(moveList, width, height):
+    hash = 0
+    for move in moveList:
+        if move != (-999, -999):
+            hash += pow(2, indexForMove(move, width, height));
+    if len(moveList)%2 != 0:
+        hash = hash * -1
+    if scoreAfterLastMove(moveList, width, height, (0, 0)) != (0, 0):
+        hash = str(hash) + "F"
+    else:
+        hash = str(hash) 
+    if len(moveList) > 0 and moveList[-1] == (-999, -999):
+        hash += "FED"
+    return hash
+
+def bitHashForMoveList(moveList, width, height):
+    hash = bitHashForMoveListScoreless(moveList, width, height) 
+    hash += "S" + str(scoreGame(moveList, width, height))
+    return hash
 
 ##############################################################
 ##                  Recursion - Beware                      ##
@@ -213,10 +246,13 @@ def winLoseDraw(relativeScore):
         return '?'  # this should never happen.
 
 def evaluateTree(node, width, height):
+    pruning = False
     if getWinState(node) != '?':        # we already figured out if this wins loses or draws
         return
     else:
-        if True:
+        global moveCache
+        #bitHashForNode = bitHashForMoveList(getMoveList(node), width, height)
+        if True: #not bitHashForNode in moveCache:
             movesFromHere = genMoves(getMoveList(node), width, height)
             if len(movesFromHere) == 0:     # no more children. score and mark as win lose or draw
                 mult = 1
@@ -226,21 +262,27 @@ def evaluateTree(node, width, height):
                 setWinState(node, winLoseDraw(gameScore))
                 global leaf
                 leaf += 1
-                if leaf % 10000 == 0:
+                if leaf % 10 == 0:
                     print leaf
                 return
             else:       # go get children and figure out if they win lose or draw
                 #earlyBreak = False
                 for move in movesFromHere:
                     newNode = createNode(getMoveList(node), move)
-                    evaluateTree(newNode, width, height)
-                    if (len(getMoveList(node))%2 == 0 and getWinState(newNode) == 'L') :
-                       setChildList(node, [newNode])
-                       break
-                    #elif not (len(getMoveList(node))%2 == 0 and getWinState(newNode) == 'W') :
-                    #   addChild(node, newNode)
-                    else:
-                        addChild(node, newNode)
+                    bitHash = bitHashForMoveList(getMoveList(newNode), width, height)
+                    if not bitHash in moveCache:    # if i've never visited this position
+                        evaluateTree(newNode, width, height)
+                        moveCache[bitHash] = newNode
+                        #moveCache[bitHashForMoveListScoreless(getMoveList(newNode), width, height)] = newNode
+                        if pruning:
+                            if (len(getMoveList(node))%2 == 0 and getWinState(newNode) == 'L'):
+                                setChildList(newNode, [])
+                                addChild(node, newNode)
+                                break
+                        else:
+                                addChild(node, newNode)
+                    else:   # if i have visited this position, look up a node that matches
+                        addChild(node, moveCache[bitHash])
                 # count wins loses and draws to figure out if i won or not
                 #if earlyBreak:
                 #   print "break early"
@@ -259,17 +301,18 @@ def evaluateTree(node, width, height):
                 
                 if loses > 0:
                     setWinState(node, 'W')
-                    if len(getMoveList(node))%2 == 1:
-                        setChildList(node, [])
+                    #if len(getMoveList(node))%2 == 1 and pruning:
+                    #    setChildList(node, [])
                 elif draws > 0:
                     setWinState(node, 'D')
                 else:
                     setWinState(node, 'L')
-                    if len(getMoveList(node))%2 == 0:
-                        setChildList(node, [])
+                    #if len(getMoveList(node))%2 == 0 and pruning:
+                    #     setChildList(node, [])
                     #setChildList(node, [])
                 #print "Position: " + str(getMoveList(node)) + "\t W: " + str(wins) + "\t D: " + str(draws) + "\t L: " + str(loses) + ". This is a " + str(getWinState(node))
-
+        else:
+		    node = moveCache[bitHashForNode]
 def getBestPath(node):
     if getChildList(node) == []:
         print getMoveList(node)
@@ -296,9 +339,10 @@ def getBestPath(node):
             getBestPath(loseNode)
 
 #root = [ [(0, 1), (7, 8), (1, 2), (6, 7), (0, 3), (5, 8), (3, 4), (1,4), (-999, -999), (4, 5), (4, 7), (-999,-999)] , '?', [] ]
+#root = [ [(3, 4)], '?', []]
 root = [ [] , '?', [] ]
-evaluateTree(root, 2, 4)
-print "Tested " + str(leaf) + " strategies."
+evaluateTree(root, 2, 6)
+print "Tested " + str(leaf) + " leaf positions."
 print "The root position is a " + str( getWinState(root))
 print "Best Path is: " 
 getBestPath(root)
